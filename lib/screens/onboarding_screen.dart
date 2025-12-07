@@ -1,4 +1,4 @@
-import 'package:flipkart_clone/models/onboarding_model.dart';
+import 'package:hunar_haat_genai/models/onboarding_model.dart';
 import 'package:flutter/material.dart';
 import '../constants/constants.dart';
 import 'main_navigation_screen.dart';

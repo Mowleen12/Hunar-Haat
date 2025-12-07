@@ -17,50 +17,67 @@ class ProductCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Card(
-        elevation: 4, // Increased elevation for a lifted effect
+        elevation: 4,
         margin: const EdgeInsets.all(4),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10), // Slightly rounded corners
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12.0), // Increased padding
+          padding: const EdgeInsets.all(8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Product Image
               Center(
-                child: Image.network(
-                  product.imageUrl,
-                  height: 120,
-                  width: 120,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return SizedBox(
-                      height: 120,
-                      width: 120,
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
-                              : null,
-                          valueColor: const AlwaysStoppedAnimation<Color>(kGold), // Use gold accent color
+                child: product.imageUrl.startsWith('http')
+                    ? Image.network(
+                        product.imageUrl,
+                        height: 100,
+                        width: 120,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return SizedBox(
+                            height: 100,
+                            width: 120,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                                valueColor: const AlwaysStoppedAnimation<Color>(kGold),
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          height: 100,
+                          width: 120,
+                          color: kLightGrey,
+                          child: const Icon(
+                            Icons.palette,
+                            color: kCharcoal,
+                            size: 40,
+                          ),
+                        ),
+                      )
+                    : Image.asset(
+                        product.imageUrl,
+                        height: 100,
+                        width: 120,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          height: 100,
+                          width: 120,
+                          color: kLightGrey,
+                          child: const Icon(
+                            Icons.palette,
+                            color: kCharcoal,
+                            size: 40,
+                          ),
                         ),
                       ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 120,
-                    width: 120,
-                    color: kLightGrey, // Use new background color
-                    child: const Icon(
-                      Icons.palette, // A more relevant icon for art
-                      color: kCharcoal,
-                      size: 40,
-                    ),
-                  ),
-                ),
               ),
               const SizedBox(height: 8),
 
@@ -72,7 +89,7 @@ class ProductCard extends StatelessWidget {
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  color: kCharcoal, // Use the charcoal color
+                  color: kCharcoal,
                 ),
               ),
               const SizedBox(height: 4),
@@ -113,8 +130,8 @@ class ProductCard extends StatelessWidget {
                     '₹${product.price.toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 18, // Slightly larger price font
-                      color: kIndianRed, // Use the new primary red color
+                      fontSize: 18,
+                      color: kIndianRed,
                     ),
                   ),
                   const SizedBox(height: 2),

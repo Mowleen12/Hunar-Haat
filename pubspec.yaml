@@ -1,35 +1,45 @@
-name: flipkart_clone
-description: A Flipkart clone app built with Flutter
-
+name: hunar_haat_genai
+description: A GenAI-powered Hunar Haat handicrafts marketplace app built with Flutter.
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
-  sdk: '>=2.17.0 <3.0.0'  # Changed from >=2.0.0-dev.48.0 <3.0.0
+  sdk: '>=3.4.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
+
+  # UI & Icons
+  cupertino_icons: ^1.0.8
   cached_network_image: ^3.4.1
   carousel_slider: ^5.1.1
-  flutter_chat_ui: ^1.5.0
-  flutter_chat_types: ^3.6.1
-  flutter_chat_core: ^2.8.0
-  http: ^1.2.1
-  uuid: ^4.3.3
-  image_picker: ^1.2.0
-  # Removed carousel_slider to avoid conflicts
+
+  # Chat UI & Utils (Using types for local models)
+  flutter_dotenv: ^5.1.0
+  flutter_chat_ui: ^1.6.15
+  flutter_chat_types: ^3.6.2
+  
+  # For avatar/image caching (Added based on previous code review)
+  cross_cache: ^1.0.0 
+
+  # Networking & Core Utils
+  http: ^1.1.0
+  uuid: ^4.1.0
+  intl: ^0.19.0
+  image_picker: ^1.0.4
+  
+  # NOTE: flutter_chat_core has been REMOVED to avoid dependency conflicts 
+  # with the self-contained message list architecture.
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
+
+  # Assets — Ensure these files exist in the assets/images/ folder.
   assets:
-    - assets/images/jute_bag.jpg
-    - assets/images/wood_carving.jpg
-    - assets/images/clay_pottery.jpg
+    - assets/images/

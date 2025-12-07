@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flipkart_clone/models/onboarding_model.dart';
+import 'package:hunar_haat_genai/models/onboarding_model.dart';
 import '../models/product_model.dart';
 
 // Hunar Haat Color Palette
@@ -24,6 +24,7 @@ List<Product> mockProducts = [
     discount: 25.0, // Added discount parameter
     imageUrl: 'https://images.unsplash.com/photo-1620121692062-18d2d6d066b7?q=80&w=1974&auto=format&fit=crop',
     rating: 4.5,
+    category: 'Handicrafts',
   ),
   Product(
     id: '2',
@@ -34,6 +35,7 @@ List<Product> mockProducts = [
     discount: 16.67, // Added discount parameter
     imageUrl: 'https://images.unsplash.com/photo-1596773343355-6b5a3f3a1d9b?q=80&w=1964&auto=format&fit=crop',
     rating: 4.8,
+    category: 'Pottery',
   ),
   Product(
     id: '3',
@@ -44,6 +46,7 @@ List<Product> mockProducts = [
     discount: 12.5, // Added discount parameter
     imageUrl: 'https://images.unsplash.com/photo-1599813596525-4c6d04f3d178?q=80&w=1964&auto=format&fit=crop',
     rating: 4.7,
+    category: 'Textiles', 
   ),
   Product(
     id: '4',
@@ -54,6 +57,7 @@ List<Product> mockProducts = [
     discount: 25.0, // Added discount parameter
     imageUrl: 'https://images.unsplash.com/photo-1621217743936-8c46d3e3a35a?q=80&w=1974&auto=format&fit=crop',
     rating: 4.6,
+    category: 'Pottery',
   ),
 ];
 
@@ -132,6 +136,7 @@ List<Product> mockWishlistItem = [
     discount: 12.5,
     imageUrl: 'https://static.nike.com/a/images/t_PDP_1728_v1/f_auto,q_auto:eco/5c60c37c-7f27-4c6d-8521-350e885b6c16/air-jordan-1-mid-shoes-X5pM09.png',
     rating: 4.4,
+    category: 'Footwear',
   ),
   Product(
     id: '6',
@@ -142,6 +147,7 @@ List<Product> mockWishlistItem = [
     discount: 12.5,
     imageUrl: 'https://m.media-amazon.com/images/I/71KBQ+6H-oL._SL1500_.jpg',
     rating: 4.2,
+    category: 'Electronics',
   ),
   Product(
     id: '2',
@@ -152,5 +158,6 @@ List<Product> mockWishlistItem = [
     discount: 12.5,
     imageUrl: 'https://images.samsung.com/is/image/samsung/p6pim/in/2302/gallery/in-galaxy-s23-s918-sm-s918bzgdins-thumb-534856135',
     rating: 4.3,
+    category: 'Electronics',
   ),
 ];

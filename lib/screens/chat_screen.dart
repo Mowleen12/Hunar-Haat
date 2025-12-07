@@ -1,21 +1,53 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import '../services/api_service.dart';
 
-// Hunar Haat color palette
+// --- MESSAGE MODEL ---
+// A simple local model to hold chat message data.
+class ChatMessage {
+  final String id;
+  final String text;
+  final DateTime timestamp;
+  final bool isUserMessage;
+
+  // 1. ADD THE copyWith METHOD
+  ChatMessage copyWith({
+    String? id,
+    String? text,
+    DateTime? timestamp,
+    bool? isUserMessage,
+  }) {
+    return ChatMessage(
+      // 2. Use the ?? operator to safely provide defaults
+      id: id ?? this.id,
+      text: text ?? this.text,
+      timestamp: timestamp ?? this.timestamp,
+      isUserMessage: isUserMessage ?? this.isUserMessage,
+    );
+  }
+
+  ChatMessage({
+    required this.id,
+    required this.text,
+    required this.timestamp,
+    required this.isUserMessage,
+  });
+}
+
+// --- HUNAR HAAT COLOR PALETTE ---
 const Color kIndianRed = Color(0xFFB22222);
+const Color kDarkRed = Color(0xFF8B0000);
 const Color kGold = Color(0xFFD4AF37);
 const Color kCharcoal = Color(0xFF36454F);
-const Color kLightGrey = Color(0xFFEEEEEE);
 const Color kWhiteColor = Colors.white;
 const Color kAccentOrange = Color(0xFFFF6B35);
 const Color kSoftBeige = Color(0xFFF5F1EB);
 const Color kDeepGreen = Color(0xFF2E7D32);
+const Color kLightGold = Color(0xFFFFF8DC);
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -24,188 +56,171 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> 
-    with TickerProviderStateMixin {
-  final List<types.Message> _messages = [];
+class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
+  final List<ChatMessage> _messages = [];
+  final TextEditingController _textController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final _uuid = const Uuid();
-  late AnimationController _animationController;
+
+  late AnimationController _introAnimationController;
+  late AnimationController _typingDotController;
+
   late Animation<double> _fadeAnimation;
   bool _isTyping = false;
-  
-  // Enhanced users with avatars
-  final _currentUser = const types.User(
-    id: 'user_id', 
-    firstName: 'You',
-    imageUrl: 'https://i.pravatar.cc/150?img=1',
-  );
-  
-  final _geminiBotUser = const types.User(
-    id: 'gemini_bot_id', 
-    firstName: 'Hunar',
-    lastName: 'Assistant',
-    imageUrl: 'https://i.pravatar.cc/150?img=68',
-  );
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+
+    // 1. Intro Animation Controller
+    _introAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
       vsync: this,
-    );
+    )..forward();
+
+    // 2. Typing Dot Looping Controller
+    _typingDotController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat();
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+      CurvedAnimation(
+          parent: _introAnimationController, curve: Curves.easeInOut),
     );
-    _animationController.forward();
-    
-    // Add welcome message
-    _addWelcomeMessage();
+
+    // Add welcome message with animation delay
+    Future.delayed(const Duration(milliseconds: 500), _addWelcomeMessage);
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _introAnimationController.dispose();
+    _typingDotController.dispose();
+    _textController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
+  // --- MESSAGE MANAGEMENT ---
+
   void _addWelcomeMessage() {
-    final welcomeMessage = types.TextMessage(
-      author: _geminiBotUser,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
+    final welcomeMessage = ChatMessage(
       id: _uuid.v4(),
-      text: '🙏 Namaste! Welcome to Hunar Haat! I\'m here to help you discover amazing handicrafts and answer any questions about our artisan products. How can I assist you today?',
+      timestamp: DateTime.now(),
+      isUserMessage: false,
+      text:
+          '🙏 Namaste! Welcome to Hunar Haat!\n\nI\'m your personal handicraft assistant, here to help you discover the finest Indian artisan products.\n\n✨ Ask me about:\n• Traditional crafts from any region\n• Product recommendations\n• Artisan stories\n• Price ranges and categories\n\nHow may I assist you today?',
     );
     _addMessage(welcomeMessage);
   }
 
-  void _addMessage(types.Message message) {
+  void _addMessage(ChatMessage message) {
     setState(() {
       _messages.insert(0, message);
     });
-  }
-
-  Future<void> _handleSendPressed(types.PartialText message) async {
-    // Haptic feedback
-    HapticFeedback.lightImpact();
-    
-    // Add the user's message to the chat
-    final userMessage = types.TextMessage(
-      author: _currentUser,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-      id: _uuid.v4(),
-      text: message.text,
-    );
-    _addMessage(userMessage);
-
-    // Set typing indicator
-    setState(() {
-      _isTyping = true;
-    });
-
-    // Prepare the request body for the Gemini API
-    final requestBody = jsonEncode({
-      'message': message.text,
-    });
-
-    try {
-      final response = await http.post(
-        Uri.parse('http://192.168.1.11:5000/api/gemini-chat'),
-        headers: {'Content-Type': 'application/json'},
-        body: requestBody,
+    // Scroll to the bottom (top of reversed list) after adding a message
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
       );
-
-      setState(() {
-        _isTyping = false;
-      });
-
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(utf8.decode(response.bodyBytes));
-        final botMessageContent = responseData['response'];
-
-        // Add the actual response from the bot
-        final botMessage = types.TextMessage(
-          author: _geminiBotUser,
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-          id: _uuid.v4(),
-          text: botMessageContent,
-        );
-        _addMessage(botMessage);
-      } else {
-        // Handle API errors
-        _addMessage(types.TextMessage(
-          author: _geminiBotUser,
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-          id: _uuid.v4(),
-          text: '🚫 Oops! I\'m having trouble connecting right now. Please try again in a moment. (Error: ${response.statusCode})',
-        ));
-      }
-    } catch (e) {
-      // Handle network errors
-      setState(() {
-        _isTyping = false;
-      });
-      _addMessage(types.TextMessage(
-        author: _geminiBotUser,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-        id: _uuid.v4(),
-        text: '🔌 Connection Error: I\'m having trouble reaching my servers. Please check your internet connection and try again.',
-      ));
     }
   }
 
-  Widget _buildTypingIndicator() {
-    if (!_isTyping) return const SizedBox.shrink();
-    
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundImage: _geminiBotUser.imageUrl != null 
-                ? NetworkImage(_geminiBotUser.imageUrl!) 
-                : null,
-            backgroundColor: kIndianRed.withOpacity(0.1),
-            child: _geminiBotUser.imageUrl == null 
-                ? Icon(Icons.support_agent, size: 16, color: kIndianRed)
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: kLightGrey,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildTypingDot(0),
-                const SizedBox(width: 4),
-                _buildTypingDot(1),
-                const SizedBox(width: 4),
-                _buildTypingDot(2),
-              ],
-            ),
-          ),
-        ],
-      ),
+  Future<void> _handleSendPressed(String text) async {
+    if (text.trim().isEmpty) return;
+
+    HapticFeedback.mediumImpact();
+
+    // 1. Add user's message
+    final userMessage = ChatMessage(
+      id: _uuid.v4(),
+      timestamp: DateTime.now(),
+      isUserMessage: true,
+      text: text,
     );
+    _addMessage(userMessage);
+    _textController.clear();
+
+    // 2. Show typing indicator
+    setState(() => _isTyping = true);
+
+    try {
+      // 3. Call backend — NO IP, FULLY AUTOMATIC
+      final botReply = await ApiService.postChat(text);
+
+      HapticFeedback.lightImpact();
+
+      // 4. ADD BOT MESSAGE (THIS WAS MISSING!)
+      final botMessage = ChatMessage(
+        id: _uuid.v4(),
+        timestamp: DateTime.now(),
+        isUserMessage: false,
+        text: botReply,
+      );
+      _addMessage(botMessage);
+    } catch (e, stackTrace) {
+      // 5. Show error as a bot message
+      print('❌ ERROR in _handleSendPressed: $e');
+      print('Stack trace: $stackTrace');
+      
+      final errorMessage = ChatMessage(
+        id: _uuid.v4(),
+        timestamp: DateTime.now(),
+        isUserMessage: false,
+        text:
+            'Connection Error\nFailed to reach server. Please check your internet.\nError: $e', // Added error details to UI for visibility
+      );
+      _addMessage(errorMessage);
+    } finally {
+      // 6. Hide typing indicator
+      setState(() => _isTyping = false);
+    }
   }
 
+  // --- TYPING INDICATOR WIDGETS ---
+
   Widget _buildTypingDot(int index) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 600 + (index * 200)),
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.5 + (0.5 * value),
+    return AnimatedBuilder(
+      animation: _typingDotController,
+      builder: (context, child) {
+        // Calculate phase delay for staggered animation
+        final delay = index * 0.2;
+        final totalDuration = 1.0;
+        double animationValue =
+            (_typingDotController.value + delay) % totalDuration;
+
+        // Ping-pong curve (0 -> 1 -> 0)
+        double scale = 0.0;
+        if (animationValue < 0.5) {
+          scale = Curves.easeOutCubic.transform(animationValue * 2);
+        } else {
+          scale =
+              Curves.easeOutCubic.transform(1.0 - (animationValue - 0.5) * 2);
+        }
+
+        // Apply vertical offset for the bounce effect
+        return Transform.translate(
+          offset: Offset(0, -4 * scale),
           child: Container(
-            width: 8,
-            height: 8,
+            width: 10,
+            height: 10,
             decoration: BoxDecoration(
-              color: kCharcoal.withOpacity(0.4 + (0.4 * value)),
+              gradient: LinearGradient(
+                colors: [kIndianRed, kAccentOrange],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: kIndianRed.withOpacity(0.3 * scale),
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                ),
+              ],
             ),
           ),
         );
@@ -213,341 +228,453 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kSoftBeige,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: kIndianRed,
-        foregroundColor: kWhiteColor,
-        systemOverlayStyle: SystemUiOverlayStyle.light,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios, size: 20),
-        ),
-        title: Row(
+  Widget _buildTypingIndicator() {
+    if (!_isTyping) return const SizedBox.shrink();
+
+    return Align(
+      alignment: Alignment.bottomLeft,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundImage: _geminiBotUser.imageUrl != null 
-                      ? NetworkImage(_geminiBotUser.imageUrl!) 
-                      : null,
-                  backgroundColor: kWhiteColor.withOpacity(0.2),
-                  child: _geminiBotUser.imageUrl == null 
-                      ? Icon(Icons.support_agent, color: kWhiteColor, size: 20)
-                      : null,
+            // Bot Avatar
+            Container(
+              width: 36,
+              height: 36,
+              margin: const EdgeInsets.only(right: 12, bottom: 4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: kIndianRed, width: 2),
+              ),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/bot_avatar.jpg', // Placeholder image
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: kIndianRed.withOpacity(0.1),
+                      child: const Icon(Icons.support_agent,
+                          size: 20, color: kIndianRed),
+                    );
+                  },
                 ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: kDeepGreen,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: kWhiteColor, width: 2),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Typing Dots Bubble
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [kLightGold, kSoftBeige],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Hunar Assistant',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: kWhiteColor,
-                    ),
-                  ),
-                  Text(
-                    'Online • Always here to help',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: kWhiteColor.withOpacity(0.8),
-                    ),
-                  ),
+                  _buildTypingDot(0),
+                  const SizedBox(width: 6),
+                  _buildTypingDot(1),
+                  const SizedBox(width: 6),
+                  _buildTypingDot(2),
                 ],
               ),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              // Clear chat functionality
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Clear Chat'),
-                  content: const Text('Are you sure you want to clear this conversation?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Cancel', style: TextStyle(color: kCharcoal)),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _messages.clear();
-                        });
-                        Navigator.pop(context);
-                        _addWelcomeMessage();
-                      },
-                      child: Text('Clear', style: TextStyle(color: kIndianRed)),
-                    ),
-                  ],
-                ),
-              );
-            },
-            icon: const Icon(Icons.refresh, size: 20),
+      ),
+    );
+  }
+
+  // --- MESSAGE BUBBLE WIDGET ---
+
+  Widget _buildMessageBubble(ChatMessage message) {
+    final isUser = message.isUserMessage;
+    final timeString = DateFormat('h:mm a').format(message.timestamp);
+
+    // Determines the bubble's primary color/gradient
+    final BoxDecoration decoration = BoxDecoration(
+      gradient: isUser
+          ? LinearGradient(
+              colors: [kIndianRed, kDarkRed],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            )
+          : null,
+      color: isUser ? null : kWhiteColor,
+      borderRadius: BorderRadius.only(
+        topLeft: const Radius.circular(18),
+        topRight: const Radius.circular(18),
+        bottomLeft: Radius.circular(isUser ? 18 : 4),
+        bottomRight: Radius.circular(isUser ? 4 : 18),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: isUser
+              ? kIndianRed.withOpacity(0.3)
+              : Colors.black.withOpacity(0.08),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
+
+    // Determines text style
+    final TextStyle bodyTextStyle = isUser
+        ? TextStyle(
+            color: kWhiteColor,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            height: 1.5,
+          )
+        : TextStyle(
+            color: kCharcoal,
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
+            height: 1.5,
+          );
+
+    final TextStyle captionTextStyle = TextStyle(
+      color:
+          isUser ? kWhiteColor.withOpacity(0.85) : kCharcoal.withOpacity(0.6),
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+    );
+
+    // Message bubble content
+    final bubbleContent = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.75,
+      ),
+      decoration: decoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          SelectableText(
+            message.text,
+            style: bodyTextStyle,
           ),
-          IconButton(
-            onPressed: () {
-              // Show help/info
-              _showHelpBottomSheet();
-            },
-            icon: const Icon(Icons.info_outline, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            timeString,
+            style: captionTextStyle,
           ),
         ],
       ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Column(
-          children: [
-            // Custom header with gradient
-            Container(
-              height: 4,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [kIndianRed, kAccentOrange],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
+    );
+
+    // Full row layout (including avatar for bot)
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 12,
+        bottom: 4,
+        left: isUser ? 60 : 16, // Inset user message
+        right: isUser ? 16 : 60, // Inset bot message
+      ),
+      child: Row(
+        mainAxisAlignment:
+            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Bot Avatar (Only for non-user messages)
+          if (!isUser)
+            Padding(
+              padding: const EdgeInsets.only(right: 8, bottom: 4),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: kIndianRed, width: 2),
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/bot_avatar.jpg', // Placeholder image
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: kIndianRed.withOpacity(0.1),
+                        child: const Icon(Icons.support_agent,
+                            size: 16, color: kIndianRed),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
-            Expanded(
-              child: Stack(
-                children: [
-                  // Chat interface
-                  Chat(
-                    messages: _messages,
-                    onSendPressed: _handleSendPressed,
-                    user: _currentUser,
-                    theme: _buildChatTheme(),
-                    showUserAvatars: true,
-                    showUserNames: false,
-                    dateHeaderThreshold: 86400000, // 24 hours
-                    timeFormat: DateFormat.Hm(),
-                    dateFormat: DateFormat.yMd(),
-                    // Remove customBottomWidget to show default input
-                  ),
-                  // Typing indicator overlay
-                  Positioned(
-                    bottom: 80,
-                    left: 0,
-                    right: 0,
-                    child: _buildTypingIndicator(),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+
+          Flexible(child: bubbleContent),
+        ],
       ),
     );
   }
 
-  ChatTheme _buildChatTheme() {
-    return DefaultChatTheme(
-      backgroundColor: kSoftBeige,
-      primaryColor: kIndianRed,
-      secondaryColor: kLightGrey,
-      messageBorderRadius: 16,
-      messageInsetsHorizontal: 16,
-      messageInsetsVertical: 12,
-      sentMessageBodyTextStyle: TextStyle(
-        color: kWhiteColor,
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        height: 1.4,
-      ),
-      receivedMessageBodyTextStyle: TextStyle(
-        color: kCharcoal,
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        height: 1.4,
-      ),
-      inputBackgroundColor: kWhiteColor,
-      inputBorderRadius: const BorderRadius.all(Radius.circular(24)),
-      inputTextColor: kCharcoal,
-      inputTextStyle: const TextStyle(fontSize: 14, height: 1.4),
-      sentMessageCaptionTextStyle: TextStyle(
-        color: kWhiteColor.withOpacity(0.8),
-        fontSize: 12,
-      ),
-      receivedMessageCaptionTextStyle: TextStyle(
-        color: kCharcoal.withOpacity(0.6),
-        fontSize: 12,
-      ),
-    );
-  }
+  // --- COMPOSER (Input Field) WIDGET ---
 
-  Widget? _buildCustomInput() {
+  Widget _buildComposer() {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: kWhiteColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
         ],
       ),
-      child: null, // Let the default input be used, just with custom container
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                color: kSoftBeige,
+                borderRadius: BorderRadius.circular(26),
+              ),
+              child: TextField(
+                controller: _textController,
+                style: const TextStyle(
+                    fontSize: 15, height: 1.4, color: kCharcoal),
+                decoration: const InputDecoration(
+                  hintText: 'Ask about crafts, prices, or regions...',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: kCharcoal),
+                  contentPadding: EdgeInsets.symmetric(vertical: 10),
+                ),
+                onSubmitted: _handleSendPressed,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [kIndianRed, kDarkRed],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: _isTyping
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(kWhiteColor),
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.send_rounded, color: kWhiteColor),
+              onPressed: _isTyping
+                  ? null
+                  : () => _handleSendPressed(_textController.text),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- BUILD METHOD ---
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kSoftBeige,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [kIndianRed, kDarkRed],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: kIndianRed.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: AppBar(
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            foregroundColor: kWhiteColor,
+            title: const Text('Hunar Assistant'),
+            actions: [
+              IconButton(
+                onPressed: () => _showClearChatDialog(),
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+              IconButton(
+                onPressed: () => _showHelpBottomSheet(),
+                icon: const Icon(Icons.info_outline_rounded),
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Column(
+          children: [
+            // Decorative gradient bar
+            Container(
+              height: 5,
+              decoration: BoxDecoration(
+                // Must use BoxDecoration to hold the gradient
+                gradient: LinearGradient(
+                  colors: [kGold, kAccentOrange, kIndianRed],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+              ), // The gradient object itself is correctly assigned here.
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  // Background Pattern
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _BackgroundPatternPainter(),
+                    ),
+                  ),
+                  // Message List
+                  ListView.builder(
+                    controller: _scrollController,
+                    reverse: true,
+                    padding: const EdgeInsets.only(bottom: 80, top: 10),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      return _buildMessageBubble(_messages[index]);
+                    },
+                  ),
+                  // Typing Indicator Overlay (Positioned on top of the list)
+                  _buildTypingIndicator(),
+                ],
+              ),
+            ),
+            // Input Field (Composer)
+            _buildComposer(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- DIALOGS AND BOTTOM SHEETS ---
+
+  void _showClearChatDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Chat'),
+        content:
+            const Text('Are you sure you want to clear this conversation?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _messages.clear();
+              });
+              Navigator.pop(context);
+              _addWelcomeMessage();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: kIndianRed),
+            child: const Text('Clear', style: TextStyle(color: kWhiteColor)),
+          ),
+        ],
+      ),
     );
   }
 
   void _showHelpBottomSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: kWhiteColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: kCharcoal.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Icon(Icons.help_outline, color: kIndianRed, size: 24),
-                const SizedBox(width: 12),
-                Text(
-                  'How can I help you?',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: kCharcoal,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
+            const Text('Hunar Assistant Help',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
             _buildHelpItem(
-              icon: Icons.shopping_bag,
+              icon: Icons.shopping_bag_outlined,
               title: 'Product Information',
-              description: 'Ask about any handicraft, price, or artisan details',
+              description: 'Ask about handicrafts, prices, and artisan details',
+              color: kIndianRed,
             ),
             _buildHelpItem(
-              icon: Icons.location_on,
+              icon: Icons.location_on_outlined,
               title: 'Regional Crafts',
-              description: 'Discover crafts from specific regions of India',
+              description:
+                  'Discover authentic crafts from specific Indian regions',
+              color: kDeepGreen,
             ),
-            _buildHelpItem(
-              icon: Icons.palette,
-              title: 'Craft Techniques',
-              description: 'Learn about traditional art forms and techniques',
-            ),
-            _buildHelpItem(
-              icon: Icons.support_agent,
-              title: 'Customer Support',
-              description: 'Get help with orders, shipping, and returns',
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: kIndianRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.tips_and_updates, color: kIndianRed, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Try asking: "Show me pottery from Rajasthan" or "What\'s special about Kashmiri shawls?"',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: kCharcoal.withOpacity(0.8),
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
+  // Helper for bottom sheet items (kept from your original code)
   Widget _buildHelpItem({
     required IconData icon,
     required String title,
     required String description,
+    required Color color,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 18),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: kIndianRed.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: kIndianRed, size: 20),
+            child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: kCharcoal,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: kCharcoal.withOpacity(0.7),
-                  ),
-                ),
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: kCharcoal)),
+                const SizedBox(height: 3),
+                Text(description,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: kCharcoal.withOpacity(0.7),
+                        height: 1.4)),
               ],
             ),
           ),
@@ -555,4 +682,46 @@ class _ChatScreenState extends State<ChatScreen>
       ),
     );
   }
+}
+
+// --- CUSTOM PAINTER CLASS (from your original code) ---
+
+class _BackgroundPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = kCharcoal.withOpacity(0.02)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    const spacing = 40.0;
+
+    // Vertical lines
+    for (double i = 0; i < size.width; i += spacing) {
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
+    }
+
+    // Horizontal lines
+    for (double i = 0; i < size.height; i += spacing) {
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+    }
+
+    // Draw decorative mandala patterns in corners
+    final mandalaPaint = Paint()
+      ..color = kGold.withOpacity(0.03)
+      ..style = PaintingStyle.fill;
+
+    final Path topRightPath = Path();
+    topRightPath.addOval(
+        Rect.fromCircle(center: Offset(size.width - 40, 40), radius: 30));
+    canvas.drawPath(topRightPath, mandalaPaint);
+
+    final Path bottomLeftPath = Path();
+    bottomLeftPath.addOval(
+        Rect.fromCircle(center: Offset(40, size.height - 40), radius: 30));
+    canvas.drawPath(bottomLeftPath, mandalaPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

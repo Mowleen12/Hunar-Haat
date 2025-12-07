@@ -1,4 +1,4 @@
-import 'package:flipkart_clone/screens/account_screen.dart';
+import 'package:hunar_haat_genai/screens/account_screen.dart';
 import 'package:flutter/material.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'home_screen.dart';

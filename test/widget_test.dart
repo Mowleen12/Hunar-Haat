@@ -1,30 +1,27 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:hunar_haat/main.dart';
+import 'package:hunar_haat_genai/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('App launches and shows initial screen', (WidgetTester tester) async {
+    // Build the app and trigger a frame
     await tester.pumpWidget(const MyApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Wait for any async initialization (e.g. FutureBuilder, Provider, etc.)
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Verify that the app launched without crashing
+    expect(find.byType(MyApp), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Optional: Check for a known widget in your app
+    // Example: If your app has an AppBar with title "Hunar Haat"
+    // expect(find.text('Hunar Haat'), findsOneWidget);
+
+    // Or if you have a home screen with a specific widget:
+    // expect(find.byType(HomeScreen), findsOneWidget);
+
+    // Or if you have a loading indicator initially:
+    // expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 }

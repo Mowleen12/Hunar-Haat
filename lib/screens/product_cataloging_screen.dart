@@ -1,11 +1,11 @@
+// lib/screens/product_cataloging_screen.dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import '../services/api_service.dart';
 
-// Enhanced Hunar Haat color palette
 const Color kIndianRed = Color(0xFFB22222);
 const Color kGold = Color(0xFFD4AF37);
 const Color kCharcoal = Color(0xFF36454F);
@@ -42,7 +42,6 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
 
-  // Product categories for suggestions
   final List<String> _categories = [
     'Textiles & Fabrics',
     'Pottery & Ceramics',
@@ -71,7 +70,7 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.5),
       end: Offset.zero,
@@ -81,7 +80,8 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
     ));
 
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _resultAnimationController, curve: Curves.elasticOut),
+      CurvedAnimation(
+          parent: _resultAnimationController, curve: Curves.elasticOut),
     );
 
     _animationController.forward();
@@ -145,7 +145,7 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
               ),
             ),
             const SizedBox(height: 20),
-            Text(
+            const Text(
               'Select Image Source',
               style: TextStyle(
                 fontSize: 18,
@@ -206,7 +206,7 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
             const SizedBox(height: 8),
             Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: kCharcoal,
@@ -227,7 +227,7 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
     }
 
     HapticFeedback.mediumImpact();
-    
+
     setState(() {
       _isLoading = true;
       _generatedDescription = null;
@@ -236,38 +236,25 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
     });
 
     try {
-      final productName = _nameController.text;
-      final category = _categoryController.text;
-      final price = _priceController.text;
-      final imageData = await _selectedImage!.readAsBytes();
-      final imageDataBase64 = base64Encode(imageData);
+      final imageBytes = await _selectedImage!.readAsBytes();
+      final imageBase64 = base64Encode(imageBytes);
 
-      final url = Uri.parse('http://192.168.1.11:5000/api/generate-product-listing');
-      final headers = {'Content-Type': 'application/json'};
-      final body = jsonEncode({
-        'productName': productName,
-        'category': category,
-        'price': price,
-        'imageData': imageDataBase64,
+      final result = await ApiService.generateProductListing(
+        productName: _nameController.text,
+        imageDataBase64: imageBase64,
+        category:
+            _categoryController.text.isEmpty ? null : _categoryController.text,
+        price: _priceController.text.isEmpty ? null : _priceController.text,
+      );
+
+      setState(() {
+        _generatedDescription = result['description'];
+        _generatedTags = result['tags'];
       });
-
-      final response = await http.post(url, headers: headers, body: body);
-
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        setState(() {
-          _generatedDescription = responseData['description'];
-          _generatedTags = List<String>.from(responseData['tags']);
-        });
-        _resultAnimationController.forward();
-      } else {
-        setState(() {
-          _errorMessage = 'Server Error: Unable to generate listing. Please try again.';
-        });
-      }
+      _resultAnimationController.forward();
     } catch (e) {
       setState(() {
-        _errorMessage = 'Connection Error: Please check your internet connection.';
+        _errorMessage = e.toString();
       });
     } finally {
       setState(() {
@@ -290,7 +277,7 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: kCharcoal,
@@ -315,17 +302,18 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
             fillColor: kWhiteColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kLightGrey),
+              borderSide: const BorderSide(color: kLightGrey),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kLightGrey),
+              borderSide: const BorderSide(color: kLightGrey),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kIndianRed, width: 2),
+              borderSide: const BorderSide(color: kIndianRed, width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
         ),
         if (suggestions != null) ...[
@@ -337,7 +325,8 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
               return InkWell(
                 onTap: () => controller.text = suggestion,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: kIndianRed.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -345,7 +334,7 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                   ),
                   child: Text(
                     suggestion,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: kIndianRed,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -376,12 +365,12 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
+          const Padding(
+            padding: EdgeInsets.all(16),
             child: Row(
               children: [
                 Icon(Icons.photo_camera, color: kIndianRed, size: 24),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text(
                   'Product Image',
                   style: TextStyle(
@@ -395,24 +384,26 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
           ),
           InkWell(
             onTap: _showImageSourceBottomSheet,
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+            borderRadius:
+                const BorderRadius.vertical(bottom: Radius.circular(16)),
             child: Container(
               height: 200,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: _selectedImage == null ? kSoftBeige : Colors.transparent,
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
                 border: Border.all(
-                  color: _selectedImage == null ? kLightGrey : Colors.transparent,
-                  style: _selectedImage == null ? BorderStyle.solid : BorderStyle.none,
+                  color:
+                      _selectedImage == null ? kLightGrey : Colors.transparent,
                 ),
               ),
               child: _selectedImage == null
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.add_photo_alternate_outlined, 
-                             size: 48, color: kCharcoal.withOpacity(0.5)),
+                        Icon(Icons.add_photo_alternate_outlined,
+                            size: 48, color: kCharcoal.withOpacity(0.5)),
                         const SizedBox(height: 12),
                         Text(
                           'Tap to add product image',
@@ -435,7 +426,8 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                   : Stack(
                       children: [
                         ClipRRect(
-                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                          borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(16)),
                           child: Image.file(
                             _selectedImage!,
                             fit: BoxFit.cover,
@@ -453,7 +445,8 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                             ),
                             child: IconButton(
                               onPressed: _showImageSourceBottomSheet,
-                              icon: Icon(Icons.edit, color: kIndianRed, size: 20),
+                              icon: const Icon(Icons.edit,
+                                  color: kIndianRed, size: 20),
                             ),
                           ),
                         ),
@@ -475,7 +468,7 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
         margin: const EdgeInsets.only(top: 24),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [kWhiteColor, kSoftBeige],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -500,14 +493,15 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                     color: kDeepGreen.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.auto_awesome, color: kDeepGreen, size: 24),
+                  child: const Icon(Icons.auto_awesome,
+                      color: kDeepGreen, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'AI-Generated Listing',
                         style: TextStyle(
                           fontSize: 18,
@@ -527,11 +521,8 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                 ),
               ],
             ),
-            
             const SizedBox(height: 20),
-            
-            // Description Section
-            Text(
+            const Text(
               'Product Description',
               style: TextStyle(
                 fontSize: 16,
@@ -550,18 +541,15 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
               ),
               child: Text(
                 _generatedDescription!,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 15,
                   height: 1.5,
                   color: kCharcoal,
                 ),
               ),
             ),
-            
             const SizedBox(height: 20),
-            
-            // Tags Section
-            Text(
+            const Text(
               'Suggested Tags',
               style: TextStyle(
                 fontSize: 16,
@@ -575,17 +563,21 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
               runSpacing: 8,
               children: _generatedTags.map((tag) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [kGold.withOpacity(0.2), kAccentOrange.withOpacity(0.1)],
+                      colors: [
+                        kGold.withOpacity(0.2),
+                        kAccentOrange.withOpacity(0.1)
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: kGold.withOpacity(0.5)),
                   ),
                   child: Text(
                     tag,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: kCharcoal,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -594,21 +586,18 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                 );
               }).toList(),
             ),
-            
             const SizedBox(height: 20),
-            
-            // Action Buttons
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Clipboard.setData(ClipboardData(
-                        text: 'Description: $_generatedDescription\n\nTags: ${_generatedTags.join(", ")}'
-                      ));
+                          text:
+                              'Description: $_generatedDescription\n\nTags: ${_generatedTags.join(", ")}'));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Listing copied to clipboard!'),
+                        const SnackBar(
+                          content: Text('Listing copied to clipboard!'),
                           backgroundColor: kDeepGreen,
                           behavior: SnackBarBehavior.floating,
                         ),
@@ -664,48 +653,23 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
         elevation: 0,
         backgroundColor: kIndianRed,
         foregroundColor: kWhiteColor,
-        systemOverlayStyle: SystemUiOverlayStyle.light,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios, size: 20),
         ),
-        title: Column(
+        title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Smart Cataloging',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             Text(
               'AI-powered product listing',
-              style: TextStyle(
-                fontSize: 12,
-                color: kWhiteColor.withOpacity(0.8),
-                fontWeight: FontWeight.normal,
-              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('About Smart Cataloging'),
-                  content: const Text('Upload a product image and our AI will automatically generate detailed descriptions and relevant tags for your marketplace listing.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Got it!', style: TextStyle(color: kIndianRed)),
-                    ),
-                  ],
-                ),
-              );
-            },
-            icon: const Icon(Icons.info_outline, size: 20),
-          ),
-        ],
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,
@@ -718,11 +682,10 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header Section
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
+                      gradient: const LinearGradient(
                         colors: [kIndianRed, kAccentOrange],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -736,10 +699,10 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                         ),
                       ],
                     ),
-                    child: Column(
+                    child: const Column(
                       children: [
                         Icon(Icons.smart_toy, color: kWhiteColor, size: 40),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         Text(
                           'AI-Powered Product Cataloging',
                           style: TextStyle(
@@ -749,27 +712,18 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         Text(
-                          'Upload your product image and let AI create compelling descriptions and tags',
-                          style: TextStyle(
-                            color: kWhiteColor.withOpacity(0.9),
-                            fontSize: 14,
-                          ),
+                          'Upload your product image and let AI create descriptions',
+                          style: TextStyle(color: kWhiteColor, fontSize: 14),
                           textAlign: TextAlign.center,
                         ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Image Selection
                   _buildImageSelector(),
-
                   const SizedBox(height: 24),
-
-                  // Form Fields
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -789,16 +743,15 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                           controller: _nameController,
                           label: 'Product Name',
                           icon: Icons.shopping_bag_outlined,
-                          hint: 'Enter the product name',
+                          hint: 'Enter product name',
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter a product name';
+                              return 'Please enter product name';
                             }
                             return null;
                           },
                         ),
                         const SizedBox(height: 20),
-
                         _buildFormField(
                           controller: _categoryController,
                           label: 'Category (Optional)',
@@ -807,7 +760,6 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                           suggestions: _categories,
                         ),
                         const SizedBox(height: 20),
-
                         _buildFormField(
                           controller: _priceController,
                           label: 'Price (Optional)',
@@ -818,22 +770,9 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Generate Button
-                  Container(
+                  SizedBox(
                     height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: kIndianRed.withOpacity(0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
                     child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : _generateListing,
                       style: ElevatedButton.styleFrom(
@@ -842,10 +781,9 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(28),
                         ),
-                        elevation: 0,
                       ),
                       icon: _isLoading
-                          ? SizedBox(
+                          ? const SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
@@ -855,7 +793,9 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                             )
                           : const Icon(Icons.auto_awesome, size: 20),
                       label: Text(
-                        _isLoading ? 'Analyzing Image...' : 'Generate Smart Listing',
+                        _isLoading
+                            ? 'Analyzing Image...'
+                            : 'Generate Smart Listing',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -863,8 +803,6 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                       ),
                     ),
                   ),
-
-                  // Error Message
                   if (_errorMessage != null) ...[
                     const SizedBox(height: 20),
                     Container(
@@ -876,22 +814,21 @@ class _ProductCatalogingScreenState extends State<ProductCatalogingScreen>
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.error_outline, color: Colors.red, size: 20),
+                          const Icon(Icons.error_outline,
+                              color: Colors.red, size: 20),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               _errorMessage!,
-                              style: TextStyle(color: Colors.red[700], fontSize: 14),
+                              style: TextStyle(
+                                  color: Colors.red[700], fontSize: 14),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ],
-
-                  // Generated Results
                   _buildGeneratedResults(),
-
                   const SizedBox(height: 40),
                 ],
               ),

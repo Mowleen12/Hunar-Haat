@@ -1,9 +1,8 @@
-import 'dart:convert';
+// lib/screens/profile_builder_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
+import '../services/api_service.dart';
 
-// Enhanced Hunar Haat color palette
 const Color kIndianRed = Color(0xFFB22222);
 const Color kGold = Color(0xFFD4AF37);
 const Color kCharcoal = Color(0xFF36454F);
@@ -20,7 +19,7 @@ class ProfileBuilderScreen extends StatefulWidget {
   State<ProfileBuilderScreen> createState() => _ProfileBuilderScreenState();
 }
 
-class _ProfileBuilderScreenState extends State<ProfileBuilderScreen> 
+class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -31,7 +30,6 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
   String? _generatedBio;
   String? _errorMessage;
   bool _isLoading = false;
-  int _currentStep = 0;
 
   late AnimationController _animationController;
   late AnimationController _resultAnimationController;
@@ -39,7 +37,6 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
 
-  // Predefined craft suggestions
   final List<String> _craftSuggestions = [
     'Pottery & Ceramics',
     'Wood Carving',
@@ -70,7 +67,7 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.5),
       end: Offset.zero,
@@ -80,7 +77,8 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
     ));
 
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _resultAnimationController, curve: Curves.elasticOut),
+      CurvedAnimation(
+          parent: _resultAnimationController, curve: Curves.elasticOut),
     );
 
     _animationController.forward();
@@ -98,83 +96,40 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
   }
 
   Future<void> _generateProfile() async {
-    if (_formKey.currentState!.validate()) {
-      HapticFeedback.lightImpact();
-      
+    if (!_formKey.currentState!.validate()) return;
+
+    HapticFeedback.lightImpact();
+
+    setState(() {
+      _isLoading = true;
+      _generatedBio = null;
+      _errorMessage = null;
+    });
+
+    try {
+      final bio = await ApiService.generateProfile(
+        name: _nameController.text,
+        craft: _craftController.text,
+        location:
+            _locationController.text.isEmpty ? null : _locationController.text,
+        experience: _experienceController.text.isEmpty
+            ? null
+            : _experienceController.text,
+      );
+
       setState(() {
-        _isLoading = true;
-        _generatedBio = null;
-        _errorMessage = null;
+        _generatedBio = bio;
       });
-
-      final artisanName = _nameController.text;
-      final craftType = _craftController.text;
-      final location = _locationController.text;
-      final experience = _experienceController.text;
-
-      final url = Uri.parse('http://192.168.1.11:5000/api/generate-profile'); 
-      final headers = {'Content-Type': 'application/json'};
-      final body = jsonEncode({
-        'name': artisanName,
-        'craft': craftType,
-        'location': location,
-        'experience': experience,
+      _resultAnimationController.forward();
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
       });
-
-      try {
-        final response = await http.post(url, headers: headers, body: body);
-
-        if (response.statusCode == 200) {
-          final responseData = jsonDecode(response.body);
-          setState(() {
-            _generatedBio = responseData['bio'];
-          });
-          _resultAnimationController.forward();
-        } else {
-          setState(() {
-            _errorMessage = 'Error: ${response.statusCode} - ${response.body}';
-          });
-        }
-      } catch (e) {
-        setState(() {
-          _errorMessage = 'Connection Error: Please check your internet connection and try again.';
-        });
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
-  }
-
-  Widget _buildStepIndicator() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 20),
-      child: Row(
-        children: List.generate(3, (index) {
-          bool isActive = index <= _currentStep;
-          bool isCompleted = index < _currentStep;
-          
-          return Expanded(
-            child: Container(
-              height: 4,
-              margin: EdgeInsets.only(right: index < 2 ? 8 : 0),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2),
-                color: isActive ? kIndianRed : kLightGrey,
-              ),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
-                  color: isCompleted ? kDeepGreen : (isActive ? kIndianRed : kLightGrey),
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
   }
 
   Widget _buildFormField({
@@ -191,7 +146,7 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: kCharcoal,
@@ -216,21 +171,18 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
             fillColor: kWhiteColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kLightGrey),
+              borderSide: const BorderSide(color: kLightGrey),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kLightGrey),
+              borderSide: const BorderSide(color: kLightGrey),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kIndianRed, width: 2),
+              borderSide: const BorderSide(color: kIndianRed, width: 2),
             ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.red),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
         ),
         if (suggestions != null) ...[
@@ -240,11 +192,10 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
             runSpacing: 8,
             children: suggestions.take(6).map((suggestion) {
               return InkWell(
-                onTap: () {
-                  controller.text = suggestion;
-                },
+                onTap: () => controller.text = suggestion,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: kIndianRed.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -252,7 +203,7 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                   ),
                   child: Text(
                     suggestion,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: kIndianRed,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -276,7 +227,7 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
         margin: const EdgeInsets.only(top: 24),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [kWhiteColor, kSoftBeige],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -301,14 +252,15 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                     color: kDeepGreen.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.auto_awesome, color: kDeepGreen, size: 24),
+                  child: const Icon(Icons.auto_awesome,
+                      color: kDeepGreen, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'AI-Generated Profile',
                         style: TextStyle(
                           fontSize: 18,
@@ -330,8 +282,8 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: _generatedBio!));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Profile copied to clipboard!'),
+                      const SnackBar(
+                        content: Text('Profile copied to clipboard!'),
                         backgroundColor: kDeepGreen,
                         behavior: SnackBarBehavior.floating,
                       ),
@@ -351,7 +303,7 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
               ),
               child: Text(
                 _generatedBio!,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 15,
                   height: 1.6,
                   color: kCharcoal,
@@ -365,10 +317,7 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                   child: ElevatedButton.icon(
                     onPressed: () {
                       _resultAnimationController.reset();
-                      setState(() {
-                        _generatedBio = null;
-                        _currentStep = 0;
-                      });
+                      setState(() => _generatedBio = null);
                     },
                     icon: const Icon(Icons.refresh, size: 18),
                     label: const Text('Generate New'),
@@ -386,10 +335,9 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      // Save profile functionality
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Profile saved successfully!'),
+                        const SnackBar(
+                          content: Text('Profile saved successfully!'),
                           backgroundColor: kDeepGreen,
                           behavior: SnackBarBehavior.floating,
                         ),
@@ -423,48 +371,23 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
         elevation: 0,
         backgroundColor: kIndianRed,
         foregroundColor: kWhiteColor,
-        systemOverlayStyle: SystemUiOverlayStyle.light,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios, size: 20),
         ),
-        title: Column(
+        title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'AI Profile Builder',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             Text(
               'Craft your artisan story',
-              style: TextStyle(
-                fontSize: 12,
-                color: kWhiteColor.withOpacity(0.8),
-                fontWeight: FontWeight.normal,
-              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('About Profile Builder'),
-                  content: const Text('Our AI helps create compelling profiles for artisans by analyzing their craft, experience, and background to generate personalized descriptions.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Got it!', style: TextStyle(color: kIndianRed)),
-                    ),
-                  ],
-                ),
-              );
-            },
-            icon: const Icon(Icons.info_outline, size: 20),
-          ),
-        ],
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,
@@ -477,11 +400,10 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header Card
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
+                      gradient: const LinearGradient(
                         colors: [kIndianRed, kAccentOrange],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -495,10 +417,10 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                         ),
                       ],
                     ),
-                    child: Column(
+                    child: const Column(
                       children: [
                         Icon(Icons.auto_awesome, color: kWhiteColor, size: 40),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         Text(
                           'Create Your Artisan Profile',
                           style: TextStyle(
@@ -508,22 +430,16 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         Text(
-                          'Let AI craft a compelling story that showcases your unique skills and heritage',
-                          style: TextStyle(
-                            color: kWhiteColor.withOpacity(0.9),
-                            fontSize: 14,
-                          ),
+                          'Let AI craft a compelling story that showcases your unique skills',
+                          style: TextStyle(color: kWhiteColor, fontSize: 14),
                           textAlign: TextAlign.center,
                         ),
                       ],
                     ),
                   ),
-
-                  _buildStepIndicator(),
-
-                  // Form Fields
+                  const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -543,16 +459,15 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                           controller: _nameController,
                           label: 'Artisan Name',
                           icon: Icons.person,
-                          hint: 'Enter the artisan\'s full name',
+                          hint: 'Enter full name',
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter the artisan\'s name';
+                              return 'Please enter name';
                             }
                             return null;
                           },
                         ),
                         const SizedBox(height: 20),
-
                         _buildFormField(
                           controller: _craftController,
                           label: 'Type of Craft',
@@ -561,21 +476,19 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                           suggestions: _craftSuggestions,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter the type of craft';
+                              return 'Please enter craft type';
                             }
                             return null;
                           },
                         ),
                         const SizedBox(height: 20),
-
                         _buildFormField(
                           controller: _locationController,
                           label: 'Location (Optional)',
                           icon: Icons.location_on,
-                          hint: 'City, State (e.g., Jaipur, Rajasthan)',
+                          hint: 'City, State',
                         ),
                         const SizedBox(height: 20),
-
                         _buildFormField(
                           controller: _experienceController,
                           label: 'Years of Experience (Optional)',
@@ -586,22 +499,9 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Generate Button
-                  Container(
+                  SizedBox(
                     height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: kIndianRed.withOpacity(0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
                     child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : _generateProfile,
                       style: ElevatedButton.styleFrom(
@@ -610,10 +510,9 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(28),
                         ),
-                        elevation: 0,
                       ),
                       icon: _isLoading
-                          ? SizedBox(
+                          ? const SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
@@ -631,8 +530,6 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                       ),
                     ),
                   ),
-
-                  // Error Message
                   if (_errorMessage != null) ...[
                     const SizedBox(height: 20),
                     Container(
@@ -644,22 +541,21 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen>
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.error_outline, color: Colors.red, size: 20),
+                          const Icon(Icons.error_outline,
+                              color: Colors.red, size: 20),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               _errorMessage!,
-                              style: TextStyle(color: Colors.red[700], fontSize: 14),
+                              style: TextStyle(
+                                  color: Colors.red[700], fontSize: 14),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ],
-
-                  // Generated Profile
                   _buildGeneratedProfile(),
-
                   const SizedBox(height: 40),
                 ],
               ),
