@@ -1,86 +1,76 @@
-# Hunar Haat  
+# Hunar Haat 🇮🇳
 
-An **AI-Powered Marketplace Assistant for Local Artisans**, designed to empower traditional craftsmen with a strong digital presence. Hunar Haat helps artisans market their craft, tell their stories, and expand their reach to new digital audiences through the power of **Generative AI**.  
+**An online craft marketplace mobile app** that connects local artisans directly with buyers. Hunar Haat empowers traditional craftsmen by providing an easy-to-use platform to showcase, manage, and sell their handcrafted products — all from their smartphones.
 
----
-
-## 🚀 Project Overview  
-
-Hunar Haat acts as an automated **marketing and storytelling partner** for artisans. Using **Google Cloud's Generative AI**, it generates engaging product descriptions, social media posts, and cultural narratives that highlight the value of handcrafted art.  
-
-By bridging the gap between **traditional skills** and **modern digital markets**, Hunar Haat ensures the sustainability of local art forms while connecting artisans to buyers worldwide.  
+[![Flutter](https://img.shields.io/badge/Flutter-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Firebase](https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
+[![Dart](https://img.shields.io/badge/Dart-0175C2?logo=dart&logoColor=white)](https://dart.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## ✨ Key Features  
+## 🚀 Project Overview
 
-- **AI Profile Builder**  
-  Quick and automated setup for artisan online shops and product listings.  
+Hunar Haat is a **cross-platform mobile application** built to bridge the gap between traditional artisans and modern digital buyers. The app enables craftsmen to:
 
-- **Smart Product Cataloging**  
-  AI organizes merchandise, generates compelling product summaries, and adds tags.  
+- Create their own digital shop
+- Upload and manage handcrafted products
+- Connect directly with customers for custom orders
+- Reach a wider audience without needing technical expertise
 
-- **AI-Powered Marketing Support**  
-  Crafts and deploys targeted ad campaigns across social media platforms.  
-
-- **Personalized Buyer Recommendations**  
-  Suggests products and artisans based on customer behavior.  
-
-- **Integrated Communication**  
-  Secure platform for artisans and customers to connect for custom orders.  
+By focusing on simplicity and mobile-first design, Hunar Haat makes digital commerce accessible to artisans across India and beyond.
 
 ---
 
-## 🛠️ Tech Stack  
+## ✨ Key Features
 
-**AI & ML Core**  
-- Google Cloud Generative AI Stack  
-- Vertex AI (Model deployment & management)  
-- Gemini API (Content generation & image analysis)  
+- **Secure Authentication**  
+  Sign-up and login for both artisans and buyers using email/password or phone.
+  
+- **Artisan Dashboard**  
+  Dedicated space to manage profile, product listings, and orders.
 
-**Application Stack**  
-- Frontend: **React**  
-- Backend: **Laravel**  
-- Database: **MySQL**  
+- **Product Catalog**  
+  Easy upload of products with photos, descriptions, prices, and categories.
 
-**Cloud Infrastructure**  
-- Hosting: **Google Cloud Platform**  
-- Storage: **Google Cloud Storage**  
-- Backend: **Cloud Functions / App Engine**  
+- **Real-Time Updates**  
+  Instant synchronization of inventory, orders, and messages using Firebase.
 
----
+- **Buyer Experience**  
+  Browse crafts by category, search, filter, and view artisan profiles.
 
-## 📊 System Design  
+- **In-App Communication**  
+  Direct messaging for custom order inquiries and discussions.
 
-- **Process Flow Diagram** – Explains artisan onboarding, product listing, marketing, and buyer interactions.  
-- **Architecture Diagram** – Showcases integration of AI services, frontend, backend, and cloud infrastructure.  
-
----
-
-## 🎯 Why Hunar Haat?  
-
-- Unlike other marketplaces, Hunar Haat focuses on **storytelling + marketing automation** for artisans.  
-- Provides **end-to-end support** from product listing to buyer connection.  
-- Bridges the **cultural gap** by presenting art with its **history and heritage**.  
-- Helps artisans **scale digitally without technical knowledge**.  
+- **Responsive & Beautiful UI**  
+  Clean, intuitive design optimized for Android and iOS.
 
 ---
 
-## 👨‍👩‍👧 Team  
+## 🛠️ Tech Stack
 
-**Team Name:** Phantora  
-**Team Leader:** Mowleen Armstrong  
+### Mobile Frontend
+- **Flutter** – Cross-platform framework (Android & iOS)
+- **Dart** – Programming language
+
+### Backend & Services
+- **Firebase Authentication** – Secure user login and management
+- **Firebase Firestore** – Real-time NoSQL database
+- **Firebase Cloud Storage** – Store product images and media
+
+### Tools
+- **Git & GitHub** – Version control and collaboration
+- **Android Studio / VS Code** – Development environment
 
 ---
 
-## 📌 Future Scope  
+## 📱 Screenshots
 
-- Expansion to multilingual support for artisans across regions.  
-- AI-driven analytics to provide artisans with insights on sales & trends.  
-- Integration with e-commerce platforms for direct sales.  
+*(Add screenshots here once available – recommended folders: `/screenshots/`)*
 
----
-
-## 📜 License  
-
-This project is licensed under the **MIT License**.  
+Example:
+```markdown
+![Login Screen](/screenshots/login.png)
+![Artisan Dashboard](/screenshots/dashboard.png)
+![Product Listing](/screenshots/product_list.png)
+![Product Detail](/screenshots/product_detail.png)
